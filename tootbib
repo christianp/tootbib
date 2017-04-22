@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+import requests
+import re
+from mastodon import Mastodon
+import sys
+import argparse
+
+API_BASE_URL = 'https://mathstodon.xyz'
+APPCRED_FILE = 'dailyesotericatootercred.txt'
+USERCRED_FILE = 'dailyesotericatooter_usercred.txt'
+BIBSITE = 'http://read.somethingorotherwhatever.com'
+BITS_ORDER = ['title', 'author', 'collections', 'abstract', 'url', 'pdf', 'view']
+
+
+def up_to_last_space(s):
+    m = re.search(r'\s+', s[::-1])
+    if m:
+        return s[:len(s)-m.end()]
+    else:
+        return s
+
+def fix_maths_delimiters(s):
+    def fix(m):
+        return '\\({}\\)'.format(m.group(1))
+    return re.sub(r'\$([^$]*)\$', fix, s)
+
+
+class Tooter(object):
+   
+    def __init__(self, options):
+        self.options = options
+
+    def get_entry(self, key):
+        r = requests.get('{}/entry/{}?format=json'.format(self.options.bibsite, key))
+        return r.json()
+
+    def write_toot(self, entry):
+        bits = {
+            'title': entry['title'], 
+            'url': 'URL: {}'.format(entry['url']), 
+            'view': 'Entry: {}'.format(entry['view'])
+        }
+        if entry['type']!='misc':
+            bits['author'] = '{} by {}'.format(entry['nicetype'], entry['author'])
+
+        if entry['pdf'] is not None and entry['pdf']!=entry['url']:
+            bits['pdf'] = 'PDF: {}'.format(entry['pdf'])
+
+        if len(entry['collections']):
+            bits['collections'] = 'In {}: {}'.format('collection' if len(entry['collections'])==1 else 'collections', ',  '.join(entry['collections']))
+
+        def make_toot(bits):
+            sep = '\n'
+            lines = [fix_maths_delimiters(bits[k]) for k in self.options.order if k in bits]
+            return sep.join(lines)
+
+        if entry['abstract']:
+            max_abstract_length = 500-len(make_toot(bits))-4
+            abstract = re.sub(r'[\n\r]+', ' ', entry['abstract'])
+            abstract = fix_maths_delimiters(abstract)
+            if len(entry['abstract'])>=max_abstract_length:
+                abstract = up_to_last_space(abstract[:max_abstract_length])+'...'
+
+            bits['abstract'] = abstract
+
+        toot = make_toot(bits)
+        return toot
+
+    def random_entry(self):
+        r=requests.get('{}/random?format=json'.format(self.options.bibsite))
+        entry = r.json()
+        return entry
+
+    def register_app(self):
+        Mastodon.create_app('dailyesotericatooter', to_file=self.options.appfile, api_base_url=self.options.api_base_url)
+        print("App registered")
+
+    def login(self):
+        print("Logging in...")
+        mastodon = Mastodon(client_id = self.options.userfile, api_base_url=self.options.api_base_url)
+        mastodon.log_in(
+            self.options.user_email, 
+            self.options.password, 
+            to_file = self.options.userfile
+        )
+        print("OK. Access token saved to {}".format(self.options.userfile))
+
+
+    def toot(self):
+        print("Tooting...")
+        mastodon = Mastodon(
+            client_id = self.options.appfile, 
+            access_token = self.options.userfile, 
+            api_base_url = self.options.api_base_url
+        )
+
+        if self.options.option is None:
+            entry = self.random_entry()
+        else:
+            entry = self.get_entry(self.options.option)
+
+        toot = self.write_toot(entry)
+        result = mastodon.toot(toot)
+        if 'error' in result:
+            print('Error: {}'.format(result['error']))
+        else:
+            print("Tooted at {}".format(result['url']))
+
+    def test(self):
+        if self.options.option is None:
+            entry = self.random_entry()
+        else:
+            entry = self.get_entry(self.options.option)
+        print(self.write_toot(entry))
+
+    def run(self, command):
+        commands = {
+            'register': self.register_app,
+            'login': self.login,
+            'toot': self.toot,
+            'test': self.test
+        }
+        return commands[command]()
+
+class WordListAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        words = re.split(r'\s+',values)
+        setattr(namespace, self.dest, words)
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Toot a random entry')
+    parser.add_argument('command', default='toot', choices=['toot', 'login', 'register', 'test'], nargs='?')
+    parser.add_argument('option', nargs='?')
+    parser.add_argument('--api_base_url', default=API_BASE_URL)
+    parser.add_argument('--appfile', default=APPCRED_FILE)
+    parser.add_argument('--userfile', default=USERCRED_FILE)
+    parser.add_argument('--bibsite', default=BIBSITE)
+    parser.add_argument('--order', default=BITS_ORDER, action=WordListAction)
+    parser.add_argument('--email', dest='user_email')
+    parser.add_argument('--password')
+    args = parser.parse_args()
+
+        
+    tooter = Tooter(args)
+    tooter.run(args.command)

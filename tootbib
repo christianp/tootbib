@@ -94,10 +94,10 @@ class Tooter(object):
             api_base_url = self.options.api_base_url
         )
 
-        if self.options.option is None:
+        if self.options.key is None:
             entry = self.random_entry()
         else:
-            entry = self.get_entry(self.options.option)
+            entry = self.get_entry(self.options.key)
 
         toot = self.write_toot(entry)
         result = mastodon.toot(toot)
@@ -107,10 +107,10 @@ class Tooter(object):
             print("Tooted at {}".format(result['url']))
 
     def test(self):
-        if self.options.option is None:
+        if self.options.key is None:
             entry = self.random_entry()
         else:
-            entry = self.get_entry(self.options.option)
+            entry = self.get_entry(self.options.key)
         print(self.write_toot(entry))
 
     def run(self, command):
@@ -132,7 +132,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Toot a random entry from bib-site to a Mastodon instance.')
     parser.add_argument('command', default='toot', choices=['toot', 'login', 'register', 'test'], nargs='?', help='The action to perform')
     parser.add_argument('key', nargs='?', help='Key of the entry to toot, if command is toot or test')
-    parser.add_argument('--api_base_url', default=API_BASE_URL, help='URL of the Mastodon instance')
+    parser.add_argument('--mastodon', dest='api_base_url', default=API_BASE_URL, help='URL of the Mastodon instance')
     parser.add_argument('--bibsite', default=BIBSITE, help='URL of the bibsite instance')
     parser.add_argument('--email', dest='user_email', help='Your Mastodon account\'s email address')
     parser.add_argument('--password', help='Your Mastodon account\'s password')

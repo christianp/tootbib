@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 import requests
+import os
 import re
 from mastodon import Mastodon
 import sys
 import argparse
+from urllib.parse import urlparse
+from get_featured_image import get_featured_image
 
 API_BASE_URL = 'https://mathstodon.xyz'
 APPCRED_FILE = 'tootercred.txt'
@@ -33,6 +36,21 @@ class Tooter(object):
     def get_entry(self, key):
         r = requests.get('{}/entry/{}?format=json'.format(self.options.bibsite, key))
         return r.json()
+
+    def get_image(self,entry):
+        if entry['pdf']==entry['url']:
+            raise Exception("No image")
+        image_url, image = get_featured_image(entry['url'])
+        if image_url is None:
+            raise Exception("No image")
+        r = requests.get(image_url,stream=True)
+        filename = urlparse(image_url).path.split('/')[-1]
+        path = os.path.join('images',filename)
+        with open(path,'wb') as f:
+            for chunk in r:
+                f.write(chunk)
+        
+        return path,image_url
 
     def write_toot(self, entry):
         bits = {
@@ -100,7 +118,17 @@ class Tooter(object):
             entry = self.get_entry(self.options.key)
 
         toot = self.write_toot(entry)
-        result = mastodon.toot(toot)
+
+        if self.options.include_image:
+            try:
+                image_path, image_url = self.get_image(entry)
+                media = [mastodon.media_post(image_path)]
+            except Exception:
+                media = []
+        else:
+            media = []
+
+        result = mastodon.status_post(status=toot, media_ids=media)
         if 'error' in result:
             print('Error: {}'.format(result['error']))
         else:
@@ -112,6 +140,14 @@ class Tooter(object):
         else:
             entry = self.get_entry(self.options.key)
         print(self.write_toot(entry))
+
+        if self.options.include_image:
+            try:
+                image_path, image_url = self.get_image(entry)
+                print("Would use image {}".format(image_url))
+            except Exception as e:
+                print("No image found on the page")
+                print(e)
 
     def run(self, command):
         commands = {
@@ -139,6 +175,7 @@ if __name__ == '__main__':
     parser.add_argument('--order', default=BITS_ORDER, action=WordListAction, help='Parts of the toot, in the desired order')
     parser.add_argument('--appfile', default=APPCRED_FILE, help='File to save application token in')
     parser.add_argument('--userfile', default=USERCRED_FILE, help='File to save access token in')
+    parser.add_argument('--no-image', dest='include_image', action='store_false', help='Don\'t try to find an image to attach to the toot')
     args = parser.parse_args()
 
         

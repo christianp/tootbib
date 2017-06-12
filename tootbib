@@ -6,13 +6,13 @@ from mastodon import Mastodon
 import sys
 import argparse
 from urllib.parse import urlparse
-from get_featured_image import get_featured_image
+from get_featured_image import get_featured_image, get_featured_image_from_pdf
 
 API_BASE_URL = 'https://mathstodon.xyz'
 APPCRED_FILE = 'tootercred.txt'
 USERCRED_FILE = 'tooter_usercred.txt'
 BIBSITE = 'http://read.somethingorotherwhatever.com'
-BITS_ORDER = ['title', 'author', 'collections', 'abstract', 'url', 'pdf', 'view']
+BITS_ORDER = ['new','title', 'author', 'collections', 'abstract', 'url', 'pdf', 'view']
 
 
 def up_to_last_space(s):
@@ -38,19 +38,24 @@ class Tooter(object):
         return r.json()
 
     def get_image(self,entry):
-        if entry['pdf']==entry['url']:
+        if entry['pdf']!=entry['url']:
+            image_url, image = get_featured_image(entry['url'])
+            if image_url is not None:
+                r = requests.get(image_url,stream=True)
+                filename = urlparse(image_url).path.split('/')[-1]
+                path = os.path.join('images',filename)
+                with open(path,'wb') as f:
+                    for chunk in r:
+                        f.write(chunk)
+                
+                return path,image_url
+
+        path, image = get_featured_image_from_pdf(entry['pdf'])
+
+        if path is None:
             raise Exception("No image")
-        image_url, image = get_featured_image(entry['url'])
-        if image_url is None:
-            raise Exception("No image")
-        r = requests.get(image_url,stream=True)
-        filename = urlparse(image_url).path.split('/')[-1]
-        path = os.path.join('images',filename)
-        with open(path,'wb') as f:
-            for chunk in r:
-                f.write(chunk)
-        
-        return path,image_url
+
+        return path,path
 
     def write_toot(self, entry):
         bits = {
@@ -58,6 +63,9 @@ class Tooter(object):
             'url': 'URL: {}'.format(entry['url']), 
             'view': 'Entry: {}'.format(entry['view'])
         }
+        if self.options.new:
+            bits['new'] = 'New entry!'
+
         if entry['type']!='misc':
             bits['author'] = '{} by {}'.format(entry['nicetype'], entry['author'])
 
@@ -95,7 +103,7 @@ class Tooter(object):
 
     def login(self):
         print("Logging in...")
-        mastodon = Mastodon(client_id = self.options.userfile, api_base_url=self.options.api_base_url)
+        mastodon = Mastodon(client_id = self.options.appfile, api_base_url=self.options.api_base_url)
         mastodon.log_in(
             self.options.user_email, 
             self.options.password, 
@@ -176,6 +184,7 @@ if __name__ == '__main__':
     parser.add_argument('--appfile', default=APPCRED_FILE, help='File to save application token in')
     parser.add_argument('--userfile', default=USERCRED_FILE, help='File to save access token in')
     parser.add_argument('--no-image', dest='include_image', action='store_false', help='Don\'t try to find an image to attach to the toot')
+    parser.add_argument('--new',action='store_true',help='This is a new entry')
     args = parser.parse_args()
 
         

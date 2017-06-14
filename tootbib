@@ -6,7 +6,7 @@ from mastodon import Mastodon
 import sys
 import argparse
 from urllib.parse import urlparse
-from get_featured_image import get_featured_image, get_featured_image_from_pdf
+from get_featured_image import get_featured_image, get_featured_image_from_pdf, NoImageFound
 
 API_BASE_URL = 'https://mathstodon.xyz'
 APPCRED_FILE = 'tootercred.txt'
@@ -39,16 +39,22 @@ class Tooter(object):
 
     def get_image(self,entry):
         if entry['pdf']!=entry['url']:
-            image_url, image = get_featured_image(entry['url'])
-            if image_url is not None:
-                r = requests.get(image_url,stream=True)
-                filename = urlparse(image_url).path.split('/')[-1]
-                path = os.path.join('images',filename)
-                with open(path,'wb') as f:
-                    for chunk in r:
-                        f.write(chunk)
-                
-                return path,image_url
+            try:
+                image_url, image = get_featured_image(entry['url'])
+                if image_url is not None:
+                    r = requests.get(image_url,stream=True)
+                    filename = urlparse(image_url).path.split('/')[-1]
+                    path = os.path.join('images',filename)
+                    with open(path,'wb') as f:
+                        for chunk in r:
+                            f.write(chunk)
+                    
+                    return path,image_url
+            except NoImageFound:
+                pass
+
+        if not entry['pdf']:
+            raise Exception("No image")
 
         path, image = get_featured_image_from_pdf(entry['pdf'])
 

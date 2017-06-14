@@ -11,6 +11,9 @@ from urllib.parse import urlparse, urlunparse
 
 import requests
 
+class NoImageFound(Exception):
+    pass
+
 def diagonal(image):
     w,h = image.width/4, image.height/3
     ratio = max(w,h)/min(w,h)
@@ -47,6 +50,8 @@ def best_image(images):
     images.sort(key=lambda x: diagonal(x[1]),reverse=True)
     if len(images):
         return images[0]
+    else:
+        raise NoImageFound()
 
 def get_featured_image(page_url):
     r  = requests.get(page_url,headers=headers)
@@ -76,5 +81,8 @@ if __name__ == '__main__':
     #page_url = sys.argv[1]
     #url, image = get_featured_image(page_url)
     pdf_url = sys.argv[1]
-    path,image = get_featured_image_from_pdf(pdf_url)
-    print(path)
+    try:
+        path,image = get_featured_image(pdf_url)
+        print(path)
+    except NoImageFound:
+        print("No image found")

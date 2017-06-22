@@ -47,6 +47,7 @@ def get_image(img_url):
     return image
 
 def best_image(images):
+    images = [(u,i) for u,i in images if diagonal(i)>10]
     images.sort(key=lambda x: diagonal(x[1]),reverse=True)
     if len(images):
         return images[0]

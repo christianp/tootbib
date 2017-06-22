@@ -35,6 +35,8 @@ class Tooter(object):
 
     def get_entry(self, key):
         r = requests.get('{}/entry/{}?format=json'.format(self.options.bibsite, key))
+        if r.status_code!=200:
+            raise Exception("Entry request raised HTTP status code {}".format(r.status_code))
         return r.json()
 
     def get_image(self,entry):

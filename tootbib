@@ -33,7 +33,13 @@ class Tooter(object):
     def __init__(self, options):
         self.options = options
 
-    def get_entry(self, key):
+    def get_entry(self, key=None):
+        if key is None:
+            if self.options.new:
+                return self.newest_entry()
+            else:
+                return self.random_entry()
+
         r = requests.get('{}/entry/{}?format=json'.format(self.options.bibsite, key))
         if r.status_code!=200:
             raise Exception("Entry request raised HTTP status code {}".format(r.status_code))
@@ -100,6 +106,12 @@ class Tooter(object):
         toot = make_toot(bits)
         return toot
 
+    def newest_entry(self):
+        r=requests.get('{}/?limit=1'.format(self.options.bibsite), headers={'Accept': 'application/json'})
+        entry = r.json()[0]
+        return entry
+
+
     def random_entry(self):
         r=requests.get('{}/random?format=json'.format(self.options.bibsite))
         entry = r.json()
@@ -128,10 +140,7 @@ class Tooter(object):
             api_base_url = self.options.api_base_url
         )
 
-        if self.options.key is None:
-            entry = self.random_entry()
-        else:
-            entry = self.get_entry(self.options.key)
+        entry = self.get_entry(self.options.key)
 
         toot = self.write_toot(entry)
 
@@ -151,11 +160,8 @@ class Tooter(object):
             print("Tooted at {}".format(result['url']))
 
     def test(self):
-        if self.options.key is None:
-            entry = self.random_entry()
-        else:
-            entry = self.get_entry(self.options.key)
-        print(self.write_toot(entry))
+        entry = self.get_entry(self.options.key)
+        toot = self.write_toot(entry)
 
         if self.options.include_image:
             try:

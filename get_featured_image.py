@@ -34,7 +34,6 @@ def get_image(img_url):
     r = requests.get(img_url, stream=True,headers=headers)
     if r.status_code == 200:
         downloaded = 0
-        filesize = int(r.headers['content-length'])
         for chunk in r.iter_content():
             downloaded += len(chunk)
             buffer.write(chunk)

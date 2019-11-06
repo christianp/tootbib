@@ -27,6 +27,10 @@ def fix_maths_delimiters(s):
         return '\\({}\\)'.format(m.group(1))
     return re.sub(r'\$([^$]*)\$', fix, s)
 
+def toot_length(toot):
+    toot = re.sub(r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)','.'*23,toot)
+    return len(toot)
+
 
 class Tooter(object):
    
@@ -94,14 +98,19 @@ class Tooter(object):
             lines = [fix_maths_delimiters(bits[k]) for k in self.options.order if k in bits]
             return sep.join(lines)
 
-        if entry['abstract']:
-            max_abstract_length = 500-len(make_toot(bits))-4
-            abstract = re.sub(r'[\n\r]+', ' ', entry['abstract'])
-            abstract = fix_maths_delimiters(abstract)
-            if len(entry['abstract'])>=max_abstract_length:
-                abstract = up_to_last_space(abstract[:max_abstract_length])+'...'
+        cut_order = ['collections','pdf','url','view','title','new']
+        while toot_length(make_toot(bits))>500:
+            del bits[cut_order.pop(0)]
 
-            bits['abstract'] = abstract
+        if entry['abstract']:
+            max_abstract_length = max(0,500-toot_length(make_toot(bits)))
+            if max_abstract_length>10:
+                abstract = re.sub(r'[\n\r]+', ' ', entry['abstract'])
+                abstract = fix_maths_delimiters(abstract)
+                if len(entry['abstract'])>=max_abstract_length:
+                    abstract = up_to_last_space(abstract[:max_abstract_length])+'...'
+
+                bits['abstract'] = abstract
 
         toot = make_toot(bits)
         return toot
@@ -162,6 +171,7 @@ class Tooter(object):
     def test(self):
         entry = self.get_entry(self.options.key)
         toot = self.write_toot(entry)
+        print(toot)
 
         if self.options.include_image:
             try:

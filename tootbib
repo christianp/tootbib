@@ -108,7 +108,7 @@ class Tooter(object):
                 abstract = re.sub(r'[\n\r]+', ' ', entry['abstract'])
                 abstract = fix_maths_delimiters(abstract)
                 if len(entry['abstract'])>=max_abstract_length:
-                    abstract = up_to_last_space(abstract[:max_abstract_length])+'...'
+                    abstract = up_to_last_space(abstract[:max_abstract_length-3])+'...'
 
                 bits['abstract'] = abstract
 
@@ -172,6 +172,7 @@ class Tooter(object):
         entry = self.get_entry(self.options.key)
         toot = self.write_toot(entry)
         print(toot)
+        print('{} characters'.format(toot_length(toot)))
 
         if self.options.include_image:
             try:

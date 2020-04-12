@@ -156,7 +156,10 @@ class Tooter(object):
         if self.options.include_image:
             try:
                 image_path, image_url = self.get_image(entry)
-                media = [mastodon.media_post(image_path)]
+                media_post = mastodon.media_post(image_path)
+                if media_post['error']:
+                    raise Exception("Bad image")
+                media = [media_post]
             except Exception:
                 media = []
         else:

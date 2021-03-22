@@ -31,11 +31,20 @@ def toot_length(toot):
     toot = re.sub(r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)','.'*23,toot)
     return len(toot)
 
+class BrokenLinkException(Exception):
+    def __init__(self,url):
+        self.url = url
 
 class Tooter(object):
    
     def __init__(self, options):
         self.options = options
+
+        self.mastodon = Mastodon(
+            client_id = self.options.appfile, 
+            access_token = self.options.userfile, 
+            api_base_url = self.options.api_base_url
+        )
 
     def get_entry(self, key=None):
         if key is None:
@@ -75,7 +84,17 @@ class Tooter(object):
 
         return path,path
 
-    def write_toot(self, entry):
+    def check_entry_links(self, entry):
+        for url in [entry['pdf'],entry['url']]:
+            if url is None:
+                continue
+            if 'jstor.org' in url:  # JSTOR likes to return knacky error messages
+                continue
+            r = requests.get(url)
+            if r.status_code != 200:
+                raise BrokenLinkException(url)
+
+    def write_toot(self, entry, testing=False):
         bits = {
             'title': entry['title'], 
             'url': 'URL: {}'.format(entry['url']), 
@@ -89,6 +108,14 @@ class Tooter(object):
 
         if entry['pdf'] is not None and entry['pdf']!=entry['url']:
             bits['pdf'] = 'PDF: {}'.format(entry['pdf'])
+
+        try:
+            self.check_entry_links(entry)
+        except BrokenLinkException as e:
+            if testing:
+                raise e
+            self.inform_owner(entry)
+            return
 
         if len(entry['collections']):
             bits['collections'] = 'In {}: {}'.format('collection' if len(entry['collections'])==1 else 'collections', ',  '.join(entry['collections']))
@@ -122,9 +149,14 @@ class Tooter(object):
 
 
     def random_entry(self):
-        r=requests.get('{}/random?format=json'.format(self.options.bibsite))
-        entry = r.json()
-        return entry
+        while True:
+            r=requests.get('{}/random?format=json'.format(self.options.bibsite))
+            entry = r.json()
+            try:
+                self.check_entry_links(entry)
+                return entry
+            except BrokenLinkException as e:
+                self.inform_owner(entry)
 
     def register_app(self):
         Mastodon.create_app('tooter', to_file=self.options.appfile, api_base_url=self.options.api_base_url)
@@ -143,11 +175,7 @@ class Tooter(object):
 
     def toot(self):
         print("Tooting...")
-        mastodon = Mastodon(
-            client_id = self.options.appfile, 
-            access_token = self.options.userfile, 
-            api_base_url = self.options.api_base_url
-        )
+        mastodon = self.mastodon
 
         entry = self.get_entry(self.options.key)
 
@@ -173,7 +201,7 @@ class Tooter(object):
 
     def test(self):
         entry = self.get_entry(self.options.key)
-        toot = self.write_toot(entry)
+        toot = self.write_toot(entry, testing=True)
         print(toot)
         print('{} characters'.format(toot_length(toot)))
 
@@ -190,9 +218,16 @@ class Tooter(object):
             'register': self.register_app,
             'login': self.login,
             'toot': self.toot,
-            'test': self.test
+            'test': self.test,
         }
         return commands[command]()
+
+    def inform_owner(self,entry):
+        mastodon = self.mastodon
+
+        text = f"@christianp@mathstodon.xyz The entry at {entry['view']} has a broken link."
+
+        result = mastodon.status_post(text,visibility='unlisted')
 
 class WordListAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
@@ -202,7 +237,7 @@ class WordListAction(argparse.Action):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Toot a random entry from bib-site to a Mastodon instance.')
-    parser.add_argument('command', default='toot', choices=['toot', 'login', 'register', 'test'], nargs='?', help='The action to perform')
+    parser.add_argument('command', default='toot', choices=['toot', 'login', 'register', 'test','inform_owner'], nargs='?', help='The action to perform')
     parser.add_argument('key', nargs='?', help='Key of the entry to toot, if command is toot or test')
     parser.add_argument('--mastodon', dest='api_base_url', default=API_BASE_URL, help='URL of the Mastodon instance')
     parser.add_argument('--bibsite', default=BIBSITE, help='URL of the bibsite instance')

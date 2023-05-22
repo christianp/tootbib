@@ -1,5 +1,5 @@
 beautifulsoup4==4.5.3
 Mastodon.py==1.0.6
 Pillow==9.0.1
-requests==2.20.0
+requests==2.31.0
 lxml==4.9.1

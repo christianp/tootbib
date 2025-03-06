@@ -92,6 +92,7 @@ class Tooter(object):
                 continue
             r = requests.get(url)
             if r.status_code != 200:
+                print(r.status_code)
                 raise BrokenLinkException(url)
 
     def write_toot(self, entry, testing=False):
@@ -184,6 +185,9 @@ class Tooter(object):
         entry = self.get_entry(self.options.key)
 
         toot = self.write_toot(entry)
+        print('-'*50)
+        print(toot)
+        print('-'*50)
 
         if self.options.include_image:
             try:

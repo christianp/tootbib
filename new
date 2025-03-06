@@ -1,2 +1,3 @@
 #!/bin/bash
+source venv/bin/activate
 ./tootbib toot $1 --new

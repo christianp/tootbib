@@ -197,7 +197,7 @@ class Tooter(object):
         else:
             media = []
 
-        result = mastodon.status_post(status=toot, media_ids=media)
+        result = mastodon.status_post(status=toot, media_ids=media, visibility='unlisted')
         if 'error' in result:
             print('Error: {}'.format(result['error']))
         else:
@@ -231,7 +231,7 @@ class Tooter(object):
 
         text = f"@christianp@mathstodon.xyz The entry at {entry['view']} has a broken link."
 
-        result = mastodon.status_post(text,visibility='unlisted')
+        result = mastodon.status_post(text,visibility='direct')
 
 class WordListAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):

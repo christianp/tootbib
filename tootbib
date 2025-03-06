@@ -12,7 +12,7 @@ API_BASE_URL = 'https://mathstodon.xyz'
 APPCRED_FILE = 'tootercred.txt'
 USERCRED_FILE = 'tooter_usercred.txt'
 BIBSITE = 'http://read.somethingorotherwhatever.com'
-BITS_ORDER = ['new','title', 'author', 'collections', 'abstract', 'url', 'pdf', 'view']
+BITS_ORDER = ['preamble','new','title', 'author', 'collections', 'abstract', 'url', 'pdf', 'view']
 
 
 def up_to_last_space(s):
@@ -103,6 +103,9 @@ class Tooter(object):
         if self.options.new:
             bits['new'] = 'New entry!'
 
+        if self.options.preamble:
+            bits['preamble'] = self.options.preamble+'\n'
+
         if entry['type']!='misc':
             bits['author'] = '{} by {}'.format(entry['nicetype'], entry['author'])
 
@@ -125,7 +128,7 @@ class Tooter(object):
             lines = [fix_maths_delimiters(bits[k]) for k in self.options.order if k in bits]
             return sep.join(lines)
 
-        cut_order = ['collections','pdf','url','view','title','new']
+        cut_order = ['collections','pdf','url','view','title','new','preamble']
         while toot_length(make_toot(bits))>500:
             del bits[cut_order.pop(0)]
 
@@ -248,6 +251,7 @@ if __name__ == '__main__':
     parser.add_argument('--userfile', default=USERCRED_FILE, help='File to save access token in')
     parser.add_argument('--no-image', dest='include_image', action='store_false', help='Don\'t try to find an image to attach to the toot')
     parser.add_argument('--new',action='store_true',help='This is a new entry')
+    parser.add_argument('--preamble', help='Some text to put before the generated text.')
     args = parser.parse_args()
 
         

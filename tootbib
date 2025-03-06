@@ -112,13 +112,14 @@ class Tooter(object):
         if entry['pdf'] is not None and entry['pdf']!=entry['url']:
             bits['pdf'] = 'PDF: {}'.format(entry['pdf'])
 
-        try:
-            self.check_entry_links(entry)
-        except BrokenLinkException as e:
-            if testing:
-                raise e
-            self.inform_owner(entry)
-            return
+        if self.options.check_entry_links:
+            try:
+                self.check_entry_links(entry)
+            except BrokenLinkException as e:
+                if testing:
+                    raise e
+                self.inform_owner(entry)
+                return
 
         if len(entry['collections']):
             bits['collections'] = 'In {}: {}'.format('collection' if len(entry['collections'])==1 else 'collections', ',  '.join(entry['collections']))
@@ -252,6 +253,7 @@ if __name__ == '__main__':
     parser.add_argument('--no-image', dest='include_image', action='store_false', help='Don\'t try to find an image to attach to the toot')
     parser.add_argument('--new',action='store_true',help='This is a new entry')
     parser.add_argument('--preamble', help='Some text to put before the generated text.')
+    parser.add_argument('--no-check', action='store_false', dest='check_entry_links', help='Don\'t check entry links')
     args = parser.parse_args()
 
         

@@ -1,6 +1,6 @@
 A command-line tool to toot a random entry from [bib-site](https://github.com/christianp/bib-site).
 
-Requires Python 3.
+Requires Python 3 and poppler-utils.
 
 ## To set up:
 

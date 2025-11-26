@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 import requests
 import os
 import re
@@ -119,7 +119,7 @@ class Tooter(object):
             except BrokenLinkException as e:
                 if testing:
                     raise e
-                self.inform_owner(entry)
+                self.inform_owner(entry, e.url)
                 return
 
         if len(entry['collections']):
@@ -161,7 +161,7 @@ class Tooter(object):
                 self.check_entry_links(entry)
                 return entry
             except BrokenLinkException as e:
-                self.inform_owner(entry)
+                self.inform_owner(entry, e.url)
 
     def register_app(self):
         Mastodon.create_app('tooter', to_file=self.options.appfile, api_base_url=self.options.api_base_url)
@@ -230,10 +230,10 @@ class Tooter(object):
         }
         return commands[command]()
 
-    def inform_owner(self,entry):
+    def inform_owner(self,entry, url):
         mastodon = self.mastodon
 
-        text = f"@christianp@mathstodon.xyz The entry at {entry['view']} has a broken link."
+        text = f"@christianp@mathstodon.xyz The entry at {entry['view']} has a broken link: {url}"
 
         result = mastodon.status_post(text,visibility='direct')
 
@@ -245,7 +245,7 @@ class WordListAction(argparse.Action):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Toot a random entry from bib-site to a Mastodon instance.')
-    parser.add_argument('command', default='toot', choices=['toot', 'login', 'register', 'test','inform_owner'], nargs='?', help='The action to perform')
+    parser.add_argument('command', default='toot', choices=['toot', 'login', 'register', 'test'], nargs='?', help='The action to perform')
     parser.add_argument('key', nargs='?', help='Key of the entry to toot, if command is toot or test')
     parser.add_argument('--mastodon', dest='api_base_url', default=API_BASE_URL, help='URL of the Mastodon instance')
     parser.add_argument('--bibsite', default=BIBSITE, help='URL of the bibsite instance')
